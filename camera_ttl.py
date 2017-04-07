@@ -50,8 +50,7 @@ def format_cmd_hex(cmd, params):
     """
 
     send_command = "\x7E\x00\x08\x00" + chr(cmd) + ''.join(chr(param) for param in params)
-    checksum = sum(bytearray(send_command[1:]))
-    checksum %= 256
+    checksum = sum(bytearray(send_command[1:])) % 256
     send_command += chr(checksum) + chr(0xE7)
     send_command_hex = ' '.join(binascii.hexlify(ch) for ch in send_command)
     return send_command_hex
@@ -69,8 +68,7 @@ def format_cmd(cmd, params):
     # Tail is checksum + \xE7
     send_command = "\x7E\x00\x08\x00" + chr(cmd) + ''.join(chr(param) for param in params)
 
-    checksum = sum(bytearray(send_command[1:]))
-    checksum %= 256
+    checksum = sum(bytearray(send_command[1:])) % 256
 
     send_command_list = []
     for c in send_command:
