@@ -135,6 +135,15 @@ def upload_img(s, n_bytes, n_packets, packet_size):
             print idx_cmd
     return photo
 
+def save_img(photo, fn):
+    try:
+        f = open(fn, 'w')
+        photodata = ''.join(photo)
+        f.write(photodata)
+        f.close()
+    except:
+        pass
+
 
 def config_connection(s, cmd, baud):
     s.write(cmd)
