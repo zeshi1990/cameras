@@ -3,8 +3,8 @@ import serial
 
 # Default settings, these could be changed
 BAUD = 115200
-PORT = "/dev/tty.wchusbserial1410"
-TIMEOUT = 1.2
+PORT = "/dev/ttyAMA0"
+TIMEOUT = 3.0
 
 
 # Default command code, global variables
@@ -225,8 +225,8 @@ def main():
     :return:
     """
     # Default baud rate of the camera is 115200, user can choose packet size from the dict above
-    baud = 230400
-    packet_size = 1024
+    baud = 115200
+    packet_size = 512
 
     # Configuration command
     # Params = [baudrate, ID, packet_size, 0, 0, 0]
