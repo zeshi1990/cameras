@@ -4,7 +4,7 @@ import serial
 # Default settings, these could be changed
 BAUD = 115200
 PORT = "/dev/ttyAMA0"
-TIMEOUT = 3.0
+TIMEOUT = 2.0
 
 
 # Default command code, global variables
