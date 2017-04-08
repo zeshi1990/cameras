@@ -240,16 +240,24 @@ def main():
 
     # autofocus
     # cmd is CMD_FOCUS
-    # Params = [auto(0x01)/read(0x02)/manual(0x03), [0-750 focus value if manual] (two bytes), 0, 0, 0]
+    # Params = [auto(0x01)/read(0x02)/manual(0x03),
+    #           [0-750 focus value if manual] (convert the int to two hex bytes please),
+    #           0,
+    #           0,
+    #           0]
     autofocus_cmd = format_cmd(CMD_FOCUS, [0x01, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY])
     reply = send_cmd(s, autofocus_cmd)
     print reply
 
     # take test picture
     # cmd is CMD_TAKEPIC
-    # Params = [resolution, binary/color(2nd digit in hex, 0 is color, 1 is black) and
-    #           precision(1st digit in hex, 1=JPG, 2=RGB565, 3=YUV422, 4=8bit grayscale),
-    #           picture format, exposure(0 is auto, 128-143 are 16 exposure levels), 0, 0]
+    # Params = [resolution,
+    #           binary/color(2nd digit in hex, 0 is color, 1 is black)
+    #           and precision(1st digit in hex, 1(high) to 4 (low)),
+    #           picture format (1=JPG, 2=RGB565, 3=YUV422, 4=8bit grayscale),
+    #           exposure(0 is auto, 128-143 are 16 exposure levels),
+    #           0,
+    #           0]
     takeimg_cmd = format_cmd(CMD_TAKEPIC, [0x03, 0x02, 0x01, 0x00, 0x00, 0x00])
     reply, n_bytes, n_packets = take_picture(s, takeimg_cmd)
     print reply, n_bytes, n_packets
