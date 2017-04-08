@@ -127,66 +127,6 @@ def reply2list(reply):
     return reply_list
 
 
-def send_cmd(s, cmd, rlist=False):
-    """
-    Send the command to the camera
-    :param s: serial.Serial, SerialConnector
-    :param cmd: int[], list of command
-    :param rlist: boolean, return list or not
-    :return: reply from the camera
-    """
-    s.write(cmd)
-    reply = s.read(size=13)
-    reply_hex = reply2hex(reply)
-    if rlist:
-        reply_list = reply2list(reply)
-        return reply_hex, reply_list
-    return reply_hex
-
-
-def take_picture(s, cmd):
-    """
-    Let the camera to take a picture
-    :param s:
-    :param cmd:
-    :return:
-    """
-    s.write(cmd)
-    reply = s.read(size=13)
-    reply_hex = reply2hex(reply)
-    n_bytes, n_packets = reply2hex_pic(reply)
-    return reply_hex, n_bytes, n_packets
-
-
-def upload_img(s, n_bytes, n_packets, packet_size):
-    """
-    Upload a picture to host
-    :param s: serial.Serial
-    :param n_bytes: number of bytes of the image
-    :param n_packets: number of packets of the image
-    :param packet_size: number of bytes of a packet
-    :return: unicode of the entire img
-    """
-    n_packets_list = int2hexList(n_packets)
-    photo = []
-    for idx in range(1, n_packets + 1):
-        idx_packet = int2hexList(idx)
-        params = [0x01] + idx_packet + n_packets_list + [PARAM_EMPTY]
-        idx_cmd = format_cmd(CMD_UPLOAD, params)
-        try:
-            s.write(idx_cmd)
-            if idx == n_packets:
-                last_bytes = n_bytes % packet_size
-                reply = s.read(size=13 + last_bytes)
-                photo += reply[11:11+last_bytes]
-            else:
-                reply = s.read(size=13 + packet_size)
-                photo += reply[11:11+packet_size]
-        except ValueError:
-            print idx_cmd
-    return photo
-
-
 def save_img(photo, fn):
     """
     Save the image
@@ -203,11 +143,78 @@ def save_img(photo, fn):
         pass
 
 
-def config_connection(s, cmd, baud):
-    s.write(cmd)
-    reply_hex = reply2hex(s.read(size=13))
-    s.baudrate = baud
-    return reply_hex
+class CameraSerial(serial.Serial):
+
+    def config_connection(self, cmd, baud):
+        """
+        Configure the camera settings
+        :param cmd: command
+        :param baud: new baudrate
+        :return:
+        """
+        self.write(cmd)
+        reply_hex = reply2hex(self.read(size=13))
+        self.baudrate = baud
+        return reply_hex
+
+    def send_cmd(self, cmd, rlist=False):
+        """
+        Send the command to the camera
+        :param cmd: int[], list of command
+        :param rlist: boolean, return list or not
+        :return: reply from the camera
+        """
+        self.write(cmd)
+        reply = self.read(size=13)
+        reply_hex = reply2hex(reply)
+        if rlist:
+            reply_list = reply2list(reply)
+            return reply_hex, reply_list
+        return reply_hex
+
+    def take_picture(self, cmd):
+        """
+        Let the camera to take a picture
+        :param cmd:
+        :return:
+        """
+        self.write(cmd)
+        reply = self.read(size=13)
+        reply_hex = reply2hex(reply)
+        n_bytes, n_packets = reply2hex_pic(reply)
+        return reply_hex, n_bytes, n_packets
+
+    def upload_img(self, fn, n_bytes, n_packets, packet_size):
+        """
+        Upload a picture to host
+        :param fn: filename of uploaded image
+        :param n_bytes: number of bytes of the image
+        :param n_packets: number of packets of the image
+        :param packet_size: number of bytes of a packet
+        :return: unicode of the entire img
+        """
+        n_packets_list = int2hexList(n_packets)
+        photo = []
+        for idx in range(1, n_packets + 1):
+            idx_packet = int2hexList(idx)
+            params = [0x01] + idx_packet + n_packets_list + [PARAM_EMPTY]
+            idx_cmd = format_cmd(CMD_UPLOAD, params)
+            try:
+                self.write(idx_cmd)
+                if idx == n_packets:
+                    last_bytes = n_bytes % packet_size
+                    reply = self.read(size=13 + last_bytes)
+                    photo += reply[11:11+last_bytes]
+                else:
+                    reply = self.read(size=13 + packet_size)
+                    photo += reply[11:11+packet_size]
+            except ValueError:
+                print idx_cmd
+        save_img(photo=photo, fn=fn)
+
+    def reset(self):
+        cmd = format_cmd(CMD_CONFIG, [baudrate_dict[115200], 0x00, packet_dict[512], 0, 0, 0])
+        self.config_connection(cmd, 115200)
 
 
 # main
@@ -218,8 +225,8 @@ def main():
     :return:
     """
     # Default baud rate of the camera is 115200, user can choose packet size from the dict above
-    baud = 115200
-    packet_size = 512
+    baud = 230400
+    packet_size = 1024
 
     # Configuration command
     # Params = [baudrate, ID, packet_size, 0, 0, 0]
@@ -228,14 +235,14 @@ def main():
     # Get configuration command
     getinfo_cmd = format_cmd(CMD_GETVERSION, [PARAM_EMPTY]*6)
 
-    s = serial.Serial(PORT, baudrate=BAUD, timeout=TIMEOUT)
+    cs = CameraSerial(PORT, baudrate=BAUD, timeout=TIMEOUT)
 
     # Configure the connection
-    reply = config_connection(s, config_cmd, baud)
+    reply = cs.config_connection(config_cmd, baud)
     print reply
 
     # Read the configuration
-    reply = send_cmd(s, getinfo_cmd)
+    reply = cs.send_cmd(getinfo_cmd)
     print reply
 
     # autofocus
@@ -246,7 +253,7 @@ def main():
     #           0,
     #           0]
     autofocus_cmd = format_cmd(CMD_FOCUS, [0x01, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY, PARAM_EMPTY])
-    reply = send_cmd(s, autofocus_cmd)
+    reply = cs.send_cmd(autofocus_cmd)
     print reply
 
     # take test picture
@@ -259,12 +266,13 @@ def main():
     #           0,
     #           0]
     takeimg_cmd = format_cmd(CMD_TAKEPIC, [0x03, 0x02, 0x01, 0x00, 0x00, 0x00])
-    reply, n_bytes, n_packets = take_picture(s, takeimg_cmd)
+    reply, n_bytes, n_packets = cs.take_picture(takeimg_cmd)
     print reply, n_bytes, n_packets
 
-    photo = upload_img(s, n_bytes=n_bytes, n_packets=n_packets, packet_size=packet_size)
+    cs.upload_img(fn="photo.jpg", n_bytes=n_bytes, n_packets=n_packets, packet_size=packet_size)
 
-    save_img(photo, "photo.jpg")
+    cs.reset()
+    cs.close()
 
 if __name__ == "__main__":
     main()
